@@ -1,0 +1,23 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'development' ? `http://${window.location.hostname}:5000/api` : '/api'),
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor to add the auth token header to every request
+api.interceptors.request.use(
+  (config) => {
+    config.headers = config.headers || {};
+    const token = localStorage.getItem('token');
+    if (token && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+export default api;

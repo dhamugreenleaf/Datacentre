@@ -1,0 +1,381 @@
+import React from 'react';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import MainLayout from '../../layouts/MainLayout';
+import HomePage from '../../pages/Home/HomePage';
+import AboutPage from '../../pages/About/AboutPage';
+import ServicesPage from '../../pages/Services/ServicesPage';
+import ServiceDetailsPage from '../../pages/Services/ServiceDetailsPage';
+import SolutionsPage from '../../pages/Solutions/SolutionsPage';
+import SolutionDetailsPage from '../../pages/Solutions/SolutionDetailsPage';
+import DataCenterPage from '../../pages/DataCenter/DataCenterPage';
+import FacilityDetailsPage from '../../pages/DataCenter/FacilityDetailsPage';
+import ContactPage from '../../pages/Contact/ContactPage';
+import NotFoundPage from '../../pages/NotFound/NotFoundPage';
+import EnterpriseServerPage from '../../pages/Servers/EnterpriseServerPage';
+import EnterpriseSecurityPage from '../../pages/Servers/EnterpriseSecurityPage';
+import AIServerPage from '../../pages/Servers/AIServerPage';
+import ColocationPage from '../../pages/Services/ColocationPage';
+
+// Legal Imports
+import PrivacyPolicyPage from '../../pages/Legal/PrivacyPolicyPage';
+import TermsOfServicePage from '../../pages/Legal/TermsOfServicePage';
+import RefundPolicyPage from '../../pages/Legal/RefundPolicyPage';
+
+// Auth & Dashboard Imports
+import LoginPage from '../../pages/Auth/LoginPage';
+import SignupPage from '../../pages/Auth/SignupPage';
+import ForgotPasswordPage from '../../pages/Auth/ForgotPasswordPage';
+import VerifyResetOtpPage from '../../pages/Auth/VerifyResetOtpPage';
+import ResetPasswordPage from '../../pages/Auth/ResetPasswordPage';
+import DashboardPage from '../../pages/Dashboard/DashboardPage';
+import VerificationPage from '../../pages/Dashboard/VerificationPage';
+import PaymentPage from '../../pages/Dashboard/PaymentPage';
+import MyServicesPage from '../../pages/Dashboard/MyServicesPage';
+import MyPaymentsPage from '../../pages/Dashboard/MyPaymentsPage';
+import ProfilePage from '../../pages/Dashboard/ProfilePage';
+import MyEnquiriesPage from '../../pages/Dashboard/MyEnquiriesPage';
+import MyQuotesPage from '../../pages/Dashboard/MyQuotesPage';
+import NotificationsPage from '../../pages/Dashboard/NotificationsPage';
+import ProtectedRoute from '../../components/ProtectedRoute';
+
+// Admin Imports
+import AdminLayout from '../../layouts/AdminLayout';
+import AdminProtectedRoute from '../../components/AdminProtectedRoute';
+import { AdminAuthProvider, AdminAuthContext } from '../../context/AdminAuthContext';
+import AdminLoginPage from '../../pages/Admin/AdminLoginPage';
+import SuperAdminLoginPage from '../../pages/Admin/SuperAdminLoginPage';
+import AdminDashboardPage from '../../pages/Admin/AdminDashboardPage';
+import AdminUsersPage from '../../pages/Admin/AdminUsersPage';
+import AdminUserDetailsPage from '../../pages/Admin/AdminUserDetailsPage';
+import AdminEnquiriesPage from '../../pages/Admin/AdminEnquiriesPage';
+import AdminEnquiryDetailsPage from '../../pages/Admin/AdminEnquiryDetailsPage';
+import AdminQuotesPage from '../../pages/Admin/AdminQuotesPage';
+import AdminQuoteDetailsPage from '../../pages/Admin/AdminQuoteDetailsPage';
+import AdminVerificationsPage from '../../pages/Admin/AdminVerificationsPage';
+import AdminVerificationDetailPage from '../../pages/Admin/AdminVerificationDetailPage';
+import AdminServicesPage from '../../pages/Admin/AdminServicesPage';
+import AdminPaymentsPage from '../../pages/Admin/AdminPaymentsPage';
+import AdminComplianceLogsPage from '../../pages/Admin/AdminComplianceLogsPage';
+import AdminSettingsPage from '../../pages/Admin/AdminSettingsPage';
+import AdminOffersPage from '../../pages/Admin/AdminOffersPage';
+import AdminContentPage from '../../pages/Admin/AdminContentPage';
+import AdminEnterpriseSettingsPage from '../../pages/Admin/AdminEnterpriseSettingsPage';
+import AdminAiSettingsPage from '../../pages/Admin/AdminAiSettingsPage';
+import AdminColocationSettingsPage from '../../pages/Admin/AdminColocationSettingsPage';
+import SuperAdminPanel from '../../pages/Admin/SuperAdminPanel';
+import RoleProtectedRoute from '../../components/RoleProtectedRoute';
+
+const AdminIndexRedirect = () => {
+  const { admin } = React.useContext(AdminAuthContext);
+  if (admin?.role === 'superadmin') {
+    return <Navigate to="/admin/superadmin" replace />;
+  }
+  return <Navigate to="/admin/dashboard" replace />;
+};
+
+export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <MainLayout />,
+    errorElement: <NotFoundPage />,
+    children: [
+      {
+        index: true,
+        element: <HomePage />,
+      },
+      {
+        path: 'about',
+        element: <AboutPage />,
+      },
+      {
+        path: 'services',
+        element: <ServicesPage />,
+      },
+      {
+        path: 'services/:slug',
+        element: <ServiceDetailsPage />,
+      },
+      {
+        path: 'solutions',
+        element: <SolutionsPage />,
+      },
+      {
+        path: 'solutions/:slug',
+        element: <SolutionDetailsPage />,
+      },
+      {
+        path: 'data-center',
+        element: <DataCenterPage />,
+      },
+      {
+        path: 'data-center/facilities/:slug',
+        element: <FacilityDetailsPage />,
+      },
+      {
+        path: 'contact',
+        element: <ContactPage />,
+      },
+      {
+        path: 'enterprise-servers',
+        element: <EnterpriseServerPage />,
+      },
+      {
+        path: 'enterprise-security',
+        element: <EnterpriseSecurityPage />,
+      },
+      {
+        path: 'ai-servers',
+        element: <AIServerPage />,
+      },
+      {
+        path: 'colocation',
+        element: <ColocationPage />,
+      },
+      {
+        path: 'login',
+        element: <LoginPage />,
+      },
+      {
+        path: 'signup',
+        element: <SignupPage />,
+      },
+      {
+        path: 'forgot-password',
+        element: <ForgotPasswordPage />,
+      },
+      {
+        path: 'verify-reset-otp',
+        element: <VerifyResetOtpPage />,
+      },
+      {
+        path: 'reset-password',
+        element: <ResetPasswordPage />,
+      },
+      {
+        path: 'privacy-policy',
+        element: <PrivacyPolicyPage />,
+      },
+      {
+        path: 'terms-and-conditions',
+        element: <Navigate to="/terms-of-service" replace />,
+      },
+      {
+        path: 'terms-of-service',
+        element: <TermsOfServicePage />,
+      },
+      {
+        path: 'refund-policy',
+        element: <RefundPolicyPage />,
+      },
+      {
+        path: 'dashboard',
+        element: (
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'dashboard/profile',
+        element: (
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'verification/:quoteId',
+        element: (
+          <ProtectedRoute>
+            <VerificationPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'payment/:quoteId',
+        element: (
+          <ProtectedRoute>
+            <PaymentPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'dashboard/services',
+        element: (
+          <ProtectedRoute>
+            <MyServicesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'dashboard/payments',
+        element: (
+          <ProtectedRoute>
+            <MyPaymentsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'dashboard/enquiries',
+        element: (
+          <ProtectedRoute>
+            <MyEnquiriesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'dashboard/quotes',
+        element: (
+          <ProtectedRoute>
+            <MyQuotesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'dashboard/notifications',
+        element: (
+          <ProtectedRoute>
+            <NotificationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'dashboard/admin',
+        element: <Navigate to="/admin/dashboard" replace />,
+      },
+    ],
+  },
+  {
+    path: '/admin/login',
+    element: (
+      <AdminAuthProvider>
+        <AdminLoginPage />
+      </AdminAuthProvider>
+    ),
+  },
+  {
+    path: '/superadmin/login',
+    element: (
+      <AdminAuthProvider>
+        <SuperAdminLoginPage />
+      </AdminAuthProvider>
+    ),
+  },
+  {
+    path: '/superadmin',
+    element: <Navigate to="/admin/superadmin" replace />
+  },
+  {
+    path: '/superadmin/*',
+    element: <Navigate to="/admin/superadmin" replace />
+  },
+  {
+    path: '/admin',
+    element: (
+      <AdminAuthProvider>
+        <AdminProtectedRoute>
+          <AdminLayout />
+        </AdminProtectedRoute>
+      </AdminAuthProvider>
+    ),
+    children: [
+      {
+        index: true,
+        element: <AdminIndexRedirect />
+      },
+      {
+        path: 'settings',
+        element: <AdminSettingsPage />
+      },
+      {
+        path: 'superadmin',
+        element: (
+          <RoleProtectedRoute allowedRoles={['superadmin']}>
+            <SuperAdminPanel />
+          </RoleProtectedRoute>
+        )
+      },
+      {
+        element: (
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
+            <Outlet />
+          </RoleProtectedRoute>
+        ),
+        children: [
+          {
+            path: 'dashboard',
+            element: <AdminDashboardPage />
+          },
+          {
+            path: 'notifications',
+            element: <NotificationsPage isAdmin={true} />
+          },
+          {
+            path: 'users',
+            element: <AdminUsersPage />
+          },
+          {
+            path: 'users/:id',
+            element: <AdminUserDetailsPage />
+          },
+          {
+            path: 'enquiries',
+            element: <AdminEnquiriesPage />
+          },
+          {
+            path: 'enquiries/:id',
+            element: <AdminEnquiryDetailsPage />
+          },
+          {
+            path: 'quotes',
+            element: <AdminQuotesPage />
+          },
+          {
+            path: 'quotes/:id',
+            element: <AdminQuoteDetailsPage />
+          },
+          {
+            path: 'verifications',
+            element: <AdminVerificationsPage />
+          },
+          {
+            path: 'verifications/:id',
+            element: <AdminVerificationDetailPage />
+          },
+          {
+            path: 'services',
+            element: <AdminServicesPage />
+          },
+          {
+            path: 'payments',
+            element: <AdminPaymentsPage />
+          },
+          {
+            path: 'logs',
+            element: <AdminComplianceLogsPage />
+          },
+          {
+            path: 'offers',
+            element: <AdminOffersPage />
+          },
+          {
+            path: 'content',
+            element: <AdminContentPage />
+          },
+          {
+            path: 'enterprise-settings',
+            element: <AdminEnterpriseSettingsPage />
+          },
+          {
+            path: 'ai-settings',
+            element: <AdminAiSettingsPage />
+          },
+          {
+            path: 'colocation-settings',
+            element: <AdminColocationSettingsPage />
+          }
+        ]
+      }
+    ]
+  }
+]);
