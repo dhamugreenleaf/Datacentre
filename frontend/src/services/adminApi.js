@@ -171,6 +171,14 @@ export const updateQuoteStatus = async (id, status, final_amount, notes) => {
   return response.data;
 };
 
+export const safeDeleteQuote = async (id, reason) => {
+  const response = await api.delete(`${API_URL}/quotes/${id}`, {
+    ...getConfig(),
+    data: { reason }
+  });
+  return response.data;
+};
+
 // Verifications
 export const getVerifications = async () => {
   const response = await api.get(`${API_URL}/verifications`, getConfig());

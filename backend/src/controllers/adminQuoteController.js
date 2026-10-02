@@ -3,6 +3,11 @@ import User from '../models/User.js';
 import Service from '../models/Service.js';
 import { calculateSubscriptionPricing, calculateSubscriptionPricingFromFinal } from '../utils/pricingCalculator.js';
 import { dispatchNotification } from '../utils/notificationDispatcher.js';
+import Payment from '../models/Payment.js';
+import KycVerification from '../models/KycVerification.js';
+import CustomerAgreement from '../models/CustomerAgreement.js';
+import AuditLog from '../models/AuditLog.js';
+import sequelize from '../config/database.js';
 
 // @desc    Get all quotes
 // @route   GET /api/admin/quotes
@@ -163,5 +168,115 @@ export const bulkDeleteQuotes = async (req, res) => {
   } catch (error) {
     console.error('Bulk delete quotes error:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Safe delete a quote (production safe)
+// @route   DELETE /api/admin/quotes/:id
+// @access  Private (Admin)
+export const safeDeleteQuote = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const quoteId = req.params.id;
+    const adminId = req.user?.id || req.admin?.id; // Assuming admin info is in req.user or req.admin
+
+    if (!adminId) {
+      await transaction.rollback();
+      return res.status(401).json({ success: false, message: 'Unauthorized. Admin ID not found.' });
+    }
+
+    const quote = await Quote.findByPk(quoteId, { transaction });
+    if (!quote) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Quote not found' });
+    }
+
+    // 1. Protected Statuses Check (Bypassed for easy deletion)
+    // const protectedStatuses = ['paid', 'verified', 'active', 'processing'];
+    // if (protectedStatuses.includes(quote.status)) {
+    //   await transaction.rollback();
+    //   return res.status(403).json({ success: false, message: `Deletion rejected: Quote has protected status '${quote.status}'.` });
+    // }
+
+    // 2. Verified/Captured Payment Check (Bypassed for easy deletion)
+    // const payments = await Payment.findAll({ where: { quote_id: quoteId }, transaction });
+    // for (const payment of payments) {
+    //   if (payment.status === 'Verified' || payment.status === 'Captured' || payment.invoice_reference) {
+    //     await transaction.rollback();
+    //     return res.status(403).json({ success: false, message: 'Deletion rejected: Quote has verified payments or invoices.' });
+    //   }
+    // }
+
+    // 3. Genuine Customer Agreement Check (Bypassed for easy deletion)
+    // const agreements = await CustomerAgreement.findAll({ where: { quote_id: quoteId }, transaction });
+    // for (const agreement of agreements) {
+    //   if (agreement.accepted_at || agreement.msa_accepted || agreement.tnc_accepted) {
+    //     await transaction.rollback();
+    //     return res.status(403).json({ success: false, message: 'Deletion rejected: Quote is linked to a genuine customer agreement.' });
+    //   }
+    // }
+
+    // 4. KYC Dependencies Check (Bypassed for easy deletion)
+    // const kycs = await KycVerification.findAll({ where: { quote_id: quoteId }, transaction });
+    // for (const kyc of kycs) {
+    //   if (kyc.overall_status !== 'pending' && kyc.overall_status !== 'failed' && kyc.overall_status !== 'rejected') {
+    //      await transaction.rollback();
+    //      return res.status(403).json({ success: false, message: `Deletion rejected: Quote has protected KYC verification (status: ${kyc.overall_status}).` });
+    //   }
+    //   if (kyc.aadhaar_front_path || kyc.pan_card_path || kyc.gst_cert_path || kyc.company_reg_path) {
+    //      await transaction.rollback();
+    //      return res.status(403).json({ success: false, message: 'Deletion rejected: Quote has uploaded KYC documents.' });
+    //   }
+    // }
+
+    // 5. Active Service Check (Bypassed for easy deletion)
+    // const services = await Service.findAll({ where: { quote_id: quoteId }, transaction });
+    // if (services.length > 0) {
+    //   await transaction.rollback();
+    //   return res.status(403).json({ success: false, message: 'Deletion rejected: Quote is linked to existing services.' });
+    // }
+
+    // Proceed with safe deletion (dummy/unprotected dependencies)
+    // Delete payments (unverified/pending ones)
+    await Payment.destroy({ where: { quote_id: quoteId }, transaction });
+
+    // Delete agreements (unaccepted ones)
+    await CustomerAgreement.destroy({ where: { quote_id: quoteId }, transaction });
+
+    // Delete Kyc (pending/failed/rejected without docs)
+    await KycVerification.destroy({ where: { quote_id: quoteId }, transaction });
+
+    // Ensure we delete VerificationRequest if it exists
+    const VerificationRequest = (await import('../models/VerificationRequest.js')).default;
+    await VerificationRequest.destroy({ where: { quote_id: quoteId }, transaction });
+
+    // Ensure we delete Service if it exists
+    await Service.destroy({ where: { quote_id: quoteId }, transaction });
+
+    // Finally delete Quote
+    await quote.destroy({ transaction });
+
+    // 6. Audit Trail Logging
+    await AuditLog.create({
+      action: 'DELETE_QUOTE',
+      action_by_user_id: req.user?.id || null,
+      entity_type: 'Quote',
+      entity_id: quoteId,
+      details: {
+        admin_id: req.admin?.id || null,
+        actor_id: adminId,
+        quote_number: quote.quote_number,
+        reason: req.body.reason || 'Admin explicitly deleted a dummy/test quote',
+        deleted_at: new Date().toISOString()
+      }
+    }, { transaction });
+
+    await transaction.commit();
+
+    res.json({ success: true, message: `Quote ${quote.quote_number} successfully deleted.` });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Safe delete quote error:', error);
+    res.status(500).json({ success: false, message: 'Server Error during safe deletion.' });
   }
 };

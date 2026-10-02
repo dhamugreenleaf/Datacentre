@@ -1,5 +1,5 @@
 import express from 'express';
-import { getQuotes, getQuoteById, updateQuoteStatus, bulkDeleteQuotes } from '../controllers/adminQuoteController.js';
+import { getQuotes, getQuoteById, updateQuoteStatus, bulkDeleteQuotes, safeDeleteQuote } from '../controllers/adminQuoteController.js';
 import { isRegularAdmin } from '../middleware/isRegularAdmin.js';
 
 const router = express.Router();
@@ -13,7 +13,8 @@ router.route('/bulk-delete')
   .delete(bulkDeleteQuotes);
 
 router.route('/:id')
-  .get(getQuoteById);
+  .get(getQuoteById)
+  .delete(safeDeleteQuote);
 
 router.route('/:id/status')
   .put(updateQuoteStatus);

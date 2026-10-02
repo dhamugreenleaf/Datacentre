@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" fill="none">
+  <!-- Brand Leaf Icon -->
+  <g transform="translate(10, 10)">
+    <rect width="80" height="80" rx="20" fill="#020817"/>
+    <rect width="80" height="80" rx="20" stroke="#1A801D" stroke-width="2" fill="none"/>
+    <g transform="translate(16, 16) scale(2)">
+      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" fill="none" stroke="#1A801D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" fill="none" stroke="#1A801D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  
+  <!-- Typography -->
+  <text x="105" y="52" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="800" letter-spacing="1.5">GREEN LEAF</text>
+  <text x="106" y="76" fill="#1A801D" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" letter-spacing="6">AGENCIES</text>
+</svg>

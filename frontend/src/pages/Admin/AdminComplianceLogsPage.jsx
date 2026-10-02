@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getComplianceLogs, getAuditLogs } from '../../services/adminApi';
+import { getComplianceLogs, getAuditLogs, safeDeleteQuote } from '../../services/adminApi';
 import { motion } from 'framer-motion';
 import Pagination from '../../components/common/Pagination';
 import DateFilter, { applyDateFilter } from '../../components/common/DateFilter';
@@ -73,6 +73,18 @@ const AdminComplianceLogsPage = () => {
   const itemsPerPage = 10;
   const [dateFilter, setDateFilter] = useState({ type: 'all', value: '' });
 
+  // Delete State
+  const [deleteQuoteId, setDeleteQuoteId] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  const [quoteToDelete, setQuoteToDelete] = useState(null);
+
+  // Bulk Delete State
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [bulkDeleteResults, setBulkDeleteResults] = useState(null);
+
   useEffect(() => {
     fetchLogs();
   }, []);
@@ -104,6 +116,76 @@ const AdminComplianceLogsPage = () => {
         .join(' | ');
     } catch(e) {
       return String(details);
+    }
+  };
+
+  const handleDeleteClick = (quote) => {
+    setQuoteToDelete(quote);
+    setDeleteQuoteId(quote.id);
+    setDeleteConfirmation('');
+    setDeleteError(null);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirmation !== 'DELETE') return;
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      await safeDeleteQuote(deleteQuoteId, 'Admin explicitly deleted a dummy/test quote from Overall Logs');
+      await fetchLogs();
+      setDeleteQuoteId(null);
+      setQuoteToDelete(null);
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || 'Failed to delete quote');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleSelectAll = (e, currentItems) => {
+    if (e.target.checked) {
+      setSelectedIds(currentItems.map(quote => quote.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const confirmBulkDelete = async () => {
+    if (deleteConfirmation !== 'DELETE') return;
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      setBulkDeleteResults(null);
+      
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const id of selectedIds) {
+        try {
+          await safeDeleteQuote(id, 'Admin explicitly bulk-deleted a dummy/test quote from Overall Logs');
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to delete quote ${id}:`, err);
+          failCount++;
+        }
+      }
+      
+      setBulkDeleteResults({ success: successCount, failed: failCount });
+      await fetchLogs();
+      if (failCount === 0) {
+        setIsBulkDeleteModalOpen(false);
+        setSelectedIds([]);
+      }
+    } catch (err) {
+      setDeleteError('An unexpected error occurred during bulk deletion');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -257,7 +339,25 @@ const AdminComplianceLogsPage = () => {
           
           return (
             <div className="space-y-4">
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  {selectedIds.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setIsBulkDeleteModalOpen(true);
+                        setDeleteConfirmation('');
+                        setDeleteError(null);
+                        setBulkDeleteResults(null);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete ({selectedIds.length})
+                    </button>
+                  )}
+                </div>
                 <button 
                   onClick={downloadWorkflowsPDF}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-red-500/20"
@@ -274,12 +374,21 @@ const AdminComplianceLogsPage = () => {
                   <table className="w-full text-left text-sm border-collapse block md:table">
                     <thead className="hidden md:table-header-group">
                       <tr className="bg-[#020817] text-slate-400 uppercase tracking-wider text-xs font-semibold border-b border-slate-800">
+                        <th className="py-4 px-6 w-12">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-slate-600 bg-slate-700 text-secondary focus:ring-secondary/50"
+                            onChange={(e) => handleSelectAll(e, currentItems)}
+                            checked={currentItems.length > 0 && selectedIds.length === currentItems.length}
+                          />
+                        </th>
                         <th className="py-4 px-6">Quote ID</th>
                         <th className="py-4 px-6">User</th>
                         <th className="py-4 px-6">Status</th>
                         <th className="py-4 px-6">Created At</th>
                         <th className="py-4 px-6">KYC</th>
                         <th className="py-4 px-6">Payment</th>
+                        <th className="py-4 px-6 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="block md:table-row-group divide-y md:divide-y divide-slate-800">
@@ -289,6 +398,15 @@ const AdminComplianceLogsPage = () => {
                         
                         return (
                           <tr key={quote.id} className="block md:table-row bg-[#020817] md:bg-transparent border border-slate-800 md:border-b md:border-t-0 md:border-x-0 rounded-xl md:rounded-none mb-4 md:mb-0 p-4 md:p-0 hover:bg-white/[0.02] transition-colors text-slate-300 relative">
+                            <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                              <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Select</span>
+                              <input 
+                                type="checkbox" 
+                                className="rounded border-slate-600 bg-slate-700 text-secondary focus:ring-secondary/50"
+                                onChange={() => handleSelectOne(quote.id)}
+                                checked={selectedIds.includes(quote.id)}
+                              />
+                            </td>
                             <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 whitespace-nowrap text-emerald-400 font-bold">
                               <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Quote ID</span>
                               {quote.quote_number}
@@ -326,12 +444,24 @@ const AdminComplianceLogsPage = () => {
                                 <span className="text-slate-500">Pending</span>
                               )}
                             </td>
+                            <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 text-right">
+                              <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Actions</span>
+                              <button 
+                                onClick={() => handleDeleteClick(quote)}
+                                className="p-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                title="Delete Quote"
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </td>
                           </tr>
                         );
                       })}
                       {filteredQuotes.length === 0 && (
                         <tr className="block md:table-row">
-                          <td colSpan="6" className="block md:table-cell py-8 text-center text-slate-500">
+                          <td colSpan="8" className="block md:table-cell py-8 text-center text-slate-500">
                             No compliance workflows found.
                           </td>
                         </tr>
@@ -452,6 +582,175 @@ const AdminComplianceLogsPage = () => {
         );
       })()}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteQuoteId && quoteToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-[#0f172a] border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl relative"
+          >
+            <div className="absolute top-4 right-4 cursor-pointer text-slate-400 hover:text-white" onClick={() => setDeleteQuoteId(null)}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </div>
+            
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/30">
+                <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Delete Workflow Record</h3>
+                <p className="text-red-400 text-sm">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="bg-[#020817] p-4 rounded-xl border border-slate-800 mb-4 space-y-2 text-sm text-slate-300">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Quote ID</span>
+                <span className="font-bold text-white">{quoteToDelete.quote_number}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Customer</span>
+                <span className="font-bold text-white">{quoteToDelete.user?.name || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Amount</span>
+                <span className="font-bold text-white">₹{quoteToDelete.grand_total?.toLocaleString() || '0'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Status</span>
+                <span className="font-bold text-white capitalize">{quoteToDelete.status}</span>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg mb-4">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-400 mb-2">
+                Type <span className="text-red-400 font-bold select-all">DELETE</span> to confirm
+              </label>
+              <input 
+                type="text" 
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                className="w-full bg-[#020817] border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                placeholder="DELETE"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setDeleteQuoteId(null)}
+                className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete}
+                disabled={deleteConfirmation !== 'DELETE' || isDeleting}
+                className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2
+                  ${deleteConfirmation === 'DELETE' && !isDeleting
+                    ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/20' 
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+              >
+                {isDeleting ? (
+                  <><div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin"></div> Deleting...</>
+                ) : 'Delete Record'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {isBulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-[#0f172a] border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl relative"
+          >
+            <div className="absolute top-4 right-4 cursor-pointer text-slate-400 hover:text-white" onClick={() => { setIsBulkDeleteModalOpen(false); if (bulkDeleteResults) setSelectedIds([]); }}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </div>
+            
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/30">
+                <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Bulk Delete Workflow Records</h3>
+                <p className="text-red-400 text-sm">You are about to delete {selectedIds.length} records.</p>
+              </div>
+            </div>
+
+            <div className="bg-[#020817] p-4 rounded-xl border border-slate-800 mb-4 text-sm text-slate-300">
+              <p className="mb-2">Note: Safety constraints have been overridden as requested. All selected records (including Paid/Verified) will be forcefully deleted.</p>
+            </div>
+
+            {bulkDeleteResults && (
+              <div className={`p-4 rounded-xl border mb-4 text-sm ${bulkDeleteResults.failed > 0 ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
+                <div className="font-bold mb-1">Deletion Complete</div>
+                <div>Successfully Deleted: {bulkDeleteResults.success}</div>
+                <div>Failed/Protected: {bulkDeleteResults.failed}</div>
+              </div>
+            )}
+            
+            {deleteError && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg mb-4">
+                {deleteError}
+              </div>
+            )}
+
+            {!bulkDeleteResults && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-400 mb-2">
+                  Type <span className="text-red-400 font-bold select-all">DELETE</span> to confirm
+                </label>
+                <input 
+                  type="text" 
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  className="w-full bg-[#020817] border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  placeholder="DELETE"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => { setIsBulkDeleteModalOpen(false); if (bulkDeleteResults) setSelectedIds([]); }}
+                className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors font-medium text-sm"
+              >
+                {bulkDeleteResults ? 'Close' : 'Cancel'}
+              </button>
+              {!bulkDeleteResults && (
+                <button 
+                  onClick={confirmBulkDelete}
+                  disabled={deleteConfirmation !== 'DELETE' || isDeleting}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2
+                    ${deleteConfirmation === 'DELETE' && !isDeleting
+                      ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/20' 
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+                >
+                  {isDeleting ? (
+                    <><div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin"></div> Processing...</>
+                  ) : 'Bulk Delete'}
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
